@@ -50,9 +50,9 @@ if (!class_exists('PasswordAuthenticationRequest'))
     require_once './includes/auth/PasswordAuthenticationRequest.php';
 }
 
-if (!class_exists('PrimaryAuthenticationProvider'))
+if (!class_exists('AuthManager'))
 {
-    require_once './includes/auth/PrimaryAuthenticationProvider.php';
+    require_once './includes/auth/AuthManager.php';
 
 }
 
@@ -61,13 +61,13 @@ if (!class_exists('Status'))
     require_once './includes/Status.php';
 }
 
-if (!interface_exists('iPrimaryAuthenticationProvider'))
+if (!interface_exists('iAuthManager '))
 {
     /**
      * Auth Plug-in Interface
      *
      */
-    require_once './extensions/Auth_phpBB/iPrimaryAuthenticationProvider.php';
+    require_once './extensions/Auth_phpBB/iAuthManager.php';
 
 }
 
@@ -95,7 +95,7 @@ if (!class_exists('PasswordHash'))
  */
 
 
-class Auth_phpBB extends PrimaryAuthenticationProvider implements iPrimaryAuthenticationProvider
+class Auth_phpBB extends AuthManager implements iAuthManager
 {
 
     /**

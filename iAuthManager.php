@@ -61,7 +61,7 @@
  * done...
  *
  */
-interface iPrimaryAuthenticationProvider {
+interface iAuthManager {
 
 	/**
 	 * Check whether there exists a user account with the given name.
