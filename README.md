@@ -62,7 +62,8 @@ Open LocalSettings.php. Put this at the bottom of the file. Edit as needed.
     
     // phpBB User Database Plugin. (Requires MySQL Database)
     require_once "$IP/extensions/Auth_phpBB/Auth_phpBB.php";
-    
+    require_once "$IP/extensions/Auth_phpBB/User_phpBB.php";
+
     $wgAuth_Config = array(); // Clean.
     
     $wgAuth_Config['UseCanonicalCase'] = true;      // Setting this to true causes the MediaWiki usernames

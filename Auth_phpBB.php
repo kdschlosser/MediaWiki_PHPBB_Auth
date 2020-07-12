@@ -37,19 +37,37 @@
 // error_reporting(E_ALL); // Debug
 
 // First check if class and interface has already been defined.
-if (!class_exists('AuthPlugin') || !interface_exists('iAuthPlugin'))
-{
-    /**
-     * Auth Plug-in
-     *
-     */
-    require_once './includes/AuthPlugin.php';
 
+
+
+if (!class_exists('AuthenticationRequest'))
+{
+    require_once './includes/auth/AuthenticationRequest.php';
+}
+
+if (!class_exists('PasswordAuthenticationRequest'))
+{
+    require_once './includes/auth/PasswordAuthenticationRequest.php';
+}
+
+if (!class_exists('PrimaryAuthenticationProvider'))
+{
+    require_once './includes/auth/PrimaryAuthenticationProvider.php';
+
+}
+
+if (!class_exists('Status'))
+{
+    require_once './includes/Status.php';
+}
+
+if (!interface_exists('iPrimaryAuthenticationProvider'))
+{
     /**
      * Auth Plug-in Interface
      *
      */
-    require_once './extensions/Auth_phpBB/iAuthPlugin.php';
+    require_once './extensions/Auth_phpBB/iPrimaryAuthenticationProvider.php';
 
 }
 
@@ -75,7 +93,9 @@ if (!class_exists('PasswordHash'))
  * Handles the Authentication with the PHPBB database.
  *
  */
-class Auth_phpBB extends AuthPlugin implements iAuthPlugin
+
+
+class Auth_phpBB extends PrimaryAuthenticationProvider implements iPrimaryAuthenticationProvider
 {
 
     /**
@@ -382,9 +402,11 @@ class Auth_phpBB extends AuthPlugin implements iAuthPlugin
      * @return bool
      * @access public
      */
-    public function addUser( $user, $password, $email='', $realname='' )
+    public function testUserForCreation( $user, $autocreate, array $options = [] )
     {
-        return false;
+        $status = Status::newGood( 'ignored' );
+		$status->setOK( false );
+		return $status;
     }
 
 
@@ -393,9 +415,11 @@ class Auth_phpBB extends AuthPlugin implements iAuthPlugin
      *
      * @return bool
      */
-    public function allowPasswordChange()
+    public function providerAllowsAuthenticationDataChange(AuthenticationRequest $req, $checkData = true)
     {
-        return true;
+        $status = Status::newGood( 'ignored' );
+		$status->setOK( false );
+		return $status;
     }
 
 
@@ -404,15 +428,18 @@ class Auth_phpBB extends AuthPlugin implements iAuthPlugin
      * The name will be normalized to MediaWiki's requirements, so
      * you might need to munge it (for instance, for lowercase initial
      * letters).
-     *
      * @param string $username
      * @param string $password
      * @return bool
      * @access public
      * @todo Check if the password is being changed when it contains a slash or an escape char.
      */
-    public function authenticate($username, $password)
+    public function beginPrimaryAuthentication( array $reqs )
     {
+        $req = AuthenticationRequest::getRequestByClass( $reqs, PasswordAuthenticationRequest::class );
+        $username = $req->username;
+        $password = $req->password;
+
         // Connect to the database.
         $fresMySQLConnection = $this->connect();
 
@@ -461,31 +488,6 @@ class Auth_phpBB extends AuthPlugin implements iAuthPlugin
 
 
     /**
-     * Return true if the wiki should create a new local account automatically
-     * when asked to login a user who doesn't exist locally but does in the
-     * external auth database.
-     *
-     * If you don't automatically create accounts, you must still create
-     * accounts in some way. It's not possible to authenticate without
-     * a local account.
-     *
-     * This is just a question, and shouldn't perform any actions.
-     *
-     * NOTE: I have set this to true to allow the wiki to create accounts.
-     *       Without an accout in the wiki database a user will never be
-     *       able to login and use the wiki. I think the password does not
-     *       matter as long as authenticate() returns true.
-     *
-     * @return bool
-     * @access public
-     */
-    public function autoCreate()
-    {
-        return true;
-    }
-
-
-    /**
      * Check to see if external accounts can be created.
      * Return true if external accounts can be created.
      *
@@ -495,9 +497,9 @@ class Auth_phpBB extends AuthPlugin implements iAuthPlugin
      * @return bool
      * @access public
      */
-    public function canCreateAccounts()
+    public function accountCreationType()
     {
-        return false;
+        return PrimaryAuthenticationProvider::TYPE_NONE;
     }
 
 
@@ -655,7 +657,7 @@ class Auth_phpBB extends AuthPlugin implements iAuthPlugin
      * @param $autocreate bool True if user is being autocreated on login
      * @access public
      */
-    public function initUser( &$user, $autocreate=false )
+    public function onLocalUserCreated( &$user, $autocreate=false )
     {
         // Connect to the database.
         $fresMySQLConnection = $this->connect();
@@ -824,28 +826,6 @@ class Auth_phpBB extends AuthPlugin implements iAuthPlugin
 
 
     /**
-     * Modify options in the login template.
-     *
-     * NOTE: Turned off some Template stuff here. Anyone who knows where
-     * to find all the template options please let me know. I was only able
-     * to find a few.
-     *
-     * @param UserLoginTemplate $template
-     * @param $type String:  'signup' or 'login' (added in 1.16).
-     * @access public
-     */
-    public function modifyUITemplate( &$template, &$type )
-    {
-        if ($type == 'login')
-        {
-            $template->set('usedomain',   false); // We do not want a domain name.
-            $template->set('create',      false); // Remove option to create new accounts from the wiki.
-            $template->set('useemail',    false); // Disable the mail new password box.
-        }
-    }
-
-
-    /**
      * This prints an error when a MySQL error is found.
      *
      * @param string $message
@@ -858,41 +838,26 @@ class Auth_phpBB extends AuthPlugin implements iAuthPlugin
 
 
     /**
-     * This is the hook that runs when a user logs in. This is where the
-     * code to auto log-in a user to phpBB should go.
-     *
-     * Note: Right now it does nothing,
-     *
-     * @param object $user
-     * @return bool
-     */
-    public function onUserLoginComplete(&$user)
-    {
-        // @ToDo: Add code here to auto log into the forum.
-        return true;
-    }
-
-
-    /**
      * Here we add some text to the login screen telling the user
      * they need a phpBB account to login to the wiki.
      *
      * Note: This is a hook.
      *
-     * @param string $errorMessage
-     * @param object $template
+     * @param array $requests
+     * @param array $fieldInfo
+     * @param array &$formDescriptor
+     * @param object $action
      * @return bool
      */
-    public function onUserLoginForm($errorMessage = false, $template)
+    public function onAuthChangeFormFields(array $requests, array $fieldInfo, array &$formDescriptor, $action)
     {
-        $template->data['link'] = $this->_LoginMessage;
+        $descriptor = [
+            'type' => 'info',
+            'name' => 'Auth_phpBB',
+            'label' =>  $this->_LoginMessage
+        ];
 
-        // If there is an error message display it.
-        if ($errorMessage)
-        {
-            $template->data['message'] = $errorMessage;
-            $template->data['messagetype'] = 'error';
-        }
+        $formDescriptor['Auth_phpBB'] = $descriptor
         return true;
     }
 
@@ -915,20 +880,6 @@ class Auth_phpBB extends AuthPlugin implements iAuthPlugin
 
 
     /**
-     * Set the domain this plugin is supposed to use when authenticating.
-     *
-     * NOTE: We do not use this.
-     *
-     * @param string $domain
-     * @access public
-     */
-    public function setDomain( $domain )
-    {
-        $this->domain = $domain;
-    }
-
-
-    /**
      * Set the given password in the authentication database.
      * As a special case, the password may be set to null to request
      * locking the password to an unusable value, with the expectation
@@ -938,71 +889,14 @@ class Auth_phpBB extends AuthPlugin implements iAuthPlugin
      *
      * NOTE: We only allow the user to change their password via phpBB.
      *
-     * @param $user User object.
-     * @param $password String: password.
+     * @param $req AuthenticationRequest object.
      * @return bool
      * @access public
      */
-    public function setPassword( $user, $password )
+    public function providerChangeAuthenticationData( AuthenticationRequest $req )
     {
-        return true;
+        return PrimaryAuthenticationProvider::TYPE_NONE;
     }
-
-
-    /**
-     * Return true to prevent logins that don't authenticate here from being
-     * checked against the local database's password fields.
-     *
-     * This is just a question, and shouldn't perform any actions.
-     *
-     * Note: This forces a user to pass Authentication with the above
-     *       function authenticate(). So if a user changes their PHPBB
-     *       password, their old one will not work to log into the wiki.
-     *       Wiki does not have a way to update it's password when PHPBB
-     *       does. This however does not matter.
-     *
-     * @return bool
-     * @access public
-     */
-    public function strict()
-    {
-        return true;
-    }
-
-
-    /**
-     * Update user information in the external authentication database.
-     * Return true if successful.
-     *
-     * @param $user User object.
-     * @return bool
-     * @access public
-     */
-    public function updateExternalDB( $user )
-    {
-        return true;
-    }
-
-
-    /**
-     * When a user logs in, optionally fill in preferences and such.
-     * For instance, you might pull the email address or real name from the
-     * external user database.
-     *
-     * The User object is passed by reference so it can be modified; don't
-     * forget the & on your function declaration.
-     *
-     * NOTE: Not useing right now.
-     *
-     * @param User $user
-     * @access public
-     * @return bool
-     */
-    public function updateUser( &$user )
-    {
-        return true;
-    }
-
 
     /**
      * Check whether there exists a user account with the given name.
@@ -1015,10 +909,11 @@ class Auth_phpBB extends AuthPlugin implements iAuthPlugin
      *       valid username?" If not then MediaWiki fails Authentication.
      *
      * @param string $username
+     * @param $flags
      * @return bool
      * @access public
      */
-    public function userExists($username)
+    public function testUserExists($username, $flags = User::READ_NORMAL)
     {
 
         // Connect to the database.
@@ -1080,16 +975,4 @@ class Auth_phpBB extends AuthPlugin implements iAuthPlugin
         return $username;
     }
 
-
-    /**
-     * Check to see if the specific domain is a valid domain.
-     *
-     * @param string $domain
-     * @return bool
-     * @access public
-     */
-    public function validDomain( $domain )
-    {
-        return true;
-    }
 }

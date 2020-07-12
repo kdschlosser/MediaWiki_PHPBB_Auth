@@ -61,7 +61,7 @@
  * done...
  *
  */
-interface iAuthPlugin {
+interface iPrimaryAuthenticationProvider {
 
 	/**
 	 * Check whether there exists a user account with the given name.
@@ -73,7 +73,7 @@ interface iAuthPlugin {
 	 * @return bool
 	 * @public
 	 */
-	public function userExists( $username );
+	public function testUserExists( $username, $flags = User::READ_NORMAL);
 
 	/**
 	 * Check if a username+password pair is a valid login.
@@ -86,68 +86,14 @@ interface iAuthPlugin {
 	 * @return bool
 	 * @public
 	 */
-	public function authenticate( $username, $password );
-
-	/**
-	 * Modify options in the login template.
-	 *
-	 * @param $template UserLoginTemplate object.
-	 * @public
-	 */
-	public function modifyUITemplate( &$template, &$type );
-
-	/**
-	 * Set the domain this plugin is supposed to use when authenticating.
-	 *
-	 * @param $domain String: authentication domain.
-	 * @public
-	 */
-	public function setDomain( $domain );
-
-	/**
-	 * Check to see if the specific domain is a valid domain.
-	 *
-	 * @param $domain String: authentication domain.
-	 * @return bool
-	 * @public
-	 */
-	public function validDomain( $domain );
-
-	/**
-	 * When a user logs in, optionally fill in preferences and such.
-	 * For instance, you might pull the email address or real name from the
-	 * external user database.
-	 *
-	 * The User object is passed by reference so it can be modified; don't
-	 * forget the & on your function declaration.
-	 *
-	 * @param User $user
-	 * @public
-	 */
-	public function updateUser( &$user );
-
-	/**
-	 * Return true if the wiki should create a new local account automatically
-	 * when asked to login a user who doesn't exist locally but does in the
-	 * external auth database.
-	 *
-	 * If you don't automatically create accounts, you must still create
-	 * accounts in some way. It's not possible to authenticate without
-	 * a local account.
-	 *
-	 * This is just a question, and shouldn't perform any actions.
-	 *
-	 * @return bool
-	 * @public
-	 */
-	public function autoCreate();
+	public function beginPrimaryAuthentication( array $reqs );
 
 	/**
 	 * Can users change their passwords?
 	 *
 	 * @return bool
 	 */
-	public function allowPasswordChange();
+	public function providerAllowsAuthenticationDataChange(AuthenticationRequest $req, $checkData = true);
 
 	/**
 	 * Set the given password in the authentication database.
@@ -162,17 +108,7 @@ interface iAuthPlugin {
 	 * @return bool
 	 * @public
 	 */
-	public function setPassword( $user, $password );
-
-	/**
-	 * Update user information in the external authentication database.
-	 * Return true if successful.
-	 *
-	 * @param $user User object.
-	 * @return bool
-	 * @public
-	 */
-	public function updateExternalDB( $user );
+	public function providerChangeAuthenticationData( AuthenticationRequest $req );
 
 	/**
 	 * Check to see if external accounts can be created.
@@ -180,7 +116,7 @@ interface iAuthPlugin {
 	 * @return bool
 	 * @public
 	 */
-	public function canCreateAccounts();
+	public function accountCreationType();
 
 	/**
 	 * Add a user to the external authentication database.
@@ -193,32 +129,8 @@ interface iAuthPlugin {
 	 * @return bool
 	 * @public
 	 */
-	public function addUser( $user, $password, $email='', $realname='' );
+	public function testUserForCreation( $user, $autocreate, array $options = [] );
 
-	/**
-	 * Return true to prevent logins that don't authenticate here from being
-	 * checked against the local database's password fields.
-	 *
-	 * This is just a question, and shouldn't perform any actions.
-	 *
-	 * @return bool
-	 * @public
-	 */
-	public function strict();
-
-	/**
-	 * When creating a user account, optionally fill in preferences and such.
-	 * For instance, you might pull the email address or real name from the
-	 * external user database.
-	 *
-	 * The User object is passed by reference so it can be modified; don't
-	 * forget the & on your function declaration.
-	 *
-	 * @param $user User object.
-	 * @param $autocreate bool True if user is being autocreated on login
-	 * @public
-	 */
-	public function initUser( &$user, $autocreate=false );
 
 	/**
 	 * If you want to munge the case of an account name before the final

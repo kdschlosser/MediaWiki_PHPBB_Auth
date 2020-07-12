@@ -1,0 +1,7 @@
+{
+	"Hooks": {
+		"UserLogout": "Auth_phpBB::onUserLogout",
+        "AuthChangeFormFields": "Auth_phpBB::onAuthChangeFormFields",
+        "LocalUserCreated": "Auth_phpBB::onLocalUserCreated"
+	}
+}
